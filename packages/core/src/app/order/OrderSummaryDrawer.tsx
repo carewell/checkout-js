@@ -123,16 +123,11 @@ const OrderSummaryDrawer: FunctionComponent<
                             <TranslatedString
                                 data={{ count: getItemsCount(lineItems) }}
                                 id="cart.item_count_text"
-                            />
+                            /> (<ShopperCurrency amount={total} />)
                         </h3>
                         <a>
-                            <TranslatedString id="cart.show_details_action" />
+                            View Cart
                         </a>
-                    </div>
-                    <div className="cartDrawer-actions">
-                        <h3 className="cartDrawer-total optimizedCheckout-headingPrimary">
-                            <ShopperCurrency amount={total} />
-                        </h3>
                     </div>
                 </div>
             )}
