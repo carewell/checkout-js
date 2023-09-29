@@ -1,9 +1,9 @@
 import classNames from 'classnames';
-import { noop } from 'lodash';
-import React, { Component, createRef, ReactNode } from 'react';
-import { CSSTransition } from 'react-transition-group';
+import {noop} from 'lodash';
+import React, {Component, createRef, ReactNode} from 'react';
+import {CSSTransition} from 'react-transition-group';
 
-import { isMobileView, MobileView } from '../ui/responsive';
+import {isMobileView, MobileView} from '../ui/responsive';
 
 import CheckoutStepHeader from './CheckoutStepHeader';
 import CheckoutStepType from './CheckoutStepType';
@@ -38,16 +38,16 @@ export default class CheckoutStep extends Component<CheckoutStepProps, CheckoutS
     componentDidMount(): void {
         const { isActive } = this.props;
 
-        if (isActive) {
+        if (isActive && this.props.type !== CheckoutStepType.Shipping) {
             this.focusStep();
         }
     }
 
     componentDidUpdate(prevProps: Readonly<CheckoutStepProps>): void {
-        const { isActive } = this.props;
+        const { isActive,  } = this.props;
 
-        if (isActive && isActive !== prevProps.isActive) {
-            this.focusStep();
+        if (isActive && isActive !== prevProps.isActive && this.props.type !== CheckoutStepType.Shipping) {
+             this.focusStep();
         }
     }
 
