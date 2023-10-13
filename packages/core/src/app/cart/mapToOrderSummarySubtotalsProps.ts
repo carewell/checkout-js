@@ -12,6 +12,7 @@ export function getIsProd() {
 const IS_PROD = getIsProd()
 const PROMOTION_ID_AUTOSHIP_NEW_CUSTOMER= IS_PROD ? 428 : 36
 const PROMOTION_ID_AUTOSHIP_EXISTING_CUSTOMER= IS_PROD ? 429 : 37
+const MAX_FIRST_AUTOSHIP_DISCOUNT = 20;
 
 export default function mapToOrderSummarySubtotalsProps({
     subtotal,
@@ -39,14 +40,27 @@ export default function mapToOrderSummarySubtotalsProps({
       )
       .flat();
 
+    const isNewCustomer = !!lineItems.physicalItems
+      ?.map((li) => {
+            const discounts = li.discounts;
+
+            return discounts?.filter(
+              (d: {name?: string; id?: number; discountedAmount: number}) =>
+                d.id === PROMOTION_ID_AUTOSHIP_NEW_CUSTOMER
+            );
+        }
+      )
+      .flat().length
+
     const autoshipDiscount =
       (allDiscounts
         ?.map((i) => i?.discountedAmount) ?? [])
         .filter(Boolean).reduce((m, amt) => m + amt, 0)
 
+    const discountMaxedOut = isNewCustomer && autoshipDiscount >= MAX_FIRST_AUTOSHIP_DISCOUNT
 
     return {
-        subtotalAmount: subtotal,
+        subtotalAmount: subtotal && discountMaxedOut ? subtotal - autoshipDiscount : subtotal,
         autoshipDiscount,
         discountAmount,
         giftCertificates,
