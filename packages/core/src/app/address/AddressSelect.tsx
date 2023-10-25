@@ -12,6 +12,7 @@ import { PoweredByPaypalConnectLabel, usePayPalConnectAddress } from './PayPalAx
 import StaticAddress from './StaticAddress';
 
 import './AddressSelect.scss';
+import { getDataDogRUMHtmlPrivacyMode } from '../checkout/DataDogRumPrivacyUtil';
 
 export interface AddressSelectProps {
     addresses: CustomerAddress[];
@@ -64,8 +65,10 @@ const AddressSelect = ({
         onUseNewAddress(selectedAddress);
     };
 
+    const ddRUMAttribute = getDataDogRUMHtmlPrivacyMode();
+
     return (
-        <div className="form-field">
+        <div {...ddRUMAttribute} className="form-field">
             <div className="dropdown--select">
                 <DropdownTrigger
                     dropdown={
