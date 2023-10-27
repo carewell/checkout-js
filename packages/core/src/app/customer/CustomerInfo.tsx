@@ -10,6 +10,7 @@ import { isErrorWithType } from '../common/error';
 import { Button, ButtonSize, ButtonVariant } from '../ui/button';
 
 import canSignOut, { isSupportedSignoutMethod } from './canSignOut';
+import { getDataDogRUMHtmlPrivacyMode } from '../checkout/DataDogRumPrivacyUtil';
 
 export interface CustomerInfoProps {
     onSignOut?(event: CustomerSignOutEvent): void;
@@ -56,9 +57,12 @@ const CustomerInfo: FunctionComponent<CustomerInfoProps & WithCheckoutCustomerIn
         }
     };
 
+    const ddRUMAttribute = getDataDogRUMHtmlPrivacyMode();
+
     return (
         <div className="customerView" data-test="checkout-customer-info">
             <div
+                {...ddRUMAttribute}
                 className="customerView-body optimizedCheckout-contentPrimary"
                 data-test="customer-info"
             >

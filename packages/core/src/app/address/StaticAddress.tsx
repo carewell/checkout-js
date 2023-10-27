@@ -20,6 +20,7 @@ import localizeAddress from './localizeAddress';
 import { isPayPalConnectAddress, usePayPalConnectAddress } from './PayPalAxo';
 
 import './StaticAddress.scss';
+import { getDataDogRUMHtmlPrivacyMode } from '../checkout/DataDogRumPrivacyUtil';
 
 export interface StaticAddressProps {
     address: Address;
@@ -47,9 +48,11 @@ const StaticAddress: FunctionComponent<
               fields.filter((field) => !field.custom),
           );
     const shouldShowProviderIcon = isPayPalAxoEnabled && isPayPalConnectAddress(addressWithoutLocalization, paypalConnectAddresses);
+    const ddRUMAttribute = getDataDogRUMHtmlPrivacyMode();
 
     return !isValid ? null : (
         <div
+            {...ddRUMAttribute}
             className={classNames(
                 'vcard checkout-address--static',
                 {
