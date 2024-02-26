@@ -1,7 +1,7 @@
 import {
     CartChangedError,
     CheckoutSelectors,
-    CheckoutSettings,
+    CheckoutSettings, Consignment,
     OrderRequestBody,
     PaymentMethod,
 } from '@bigcommerce/checkout-sdk';
@@ -25,6 +25,7 @@ import {
     isErrorWithType,
 } from '../common/error';
 import { EMPTY_ARRAY } from '../common/utility';
+import {detectFraud} from "../fraud/detectFraud";
 import { TermsConditionsType } from '../termsConditions';
 
 import mapSubmitOrderErrorMessage, { mapSubmitOrderErrorTitle } from './mapSubmitOrderErrorMessage';
@@ -74,6 +75,7 @@ interface WithCheckoutPaymentProps {
     loadCheckout(): Promise<CheckoutSelectors>;
     loadPaymentMethods(): Promise<CheckoutSelectors>;
     submitOrder(values: OrderRequestBody): Promise<CheckoutSelectors>;
+    consignments: Consignment[]
 }
 
 interface PaymentState {
@@ -84,6 +86,7 @@ interface PaymentState {
     shouldHidePaymentSubmitButton: { [key: string]: boolean };
     submitFunctions: { [key: string]: ((values: PaymentFormValues) => void) | null };
     validationSchemas: { [key: string]: ObjectSchema<Partial<PaymentFormValues>> | null };
+    fraudDetected: boolean;
 }
 
 class Payment extends Component<
@@ -97,6 +100,7 @@ class Payment extends Component<
         shouldHidePaymentSubmitButton: {},
         validationSchemas: {},
         submitFunctions: {},
+        fraudDetected: false
     };
 
     private getContextValue = memoizeOne(() => {
@@ -223,6 +227,10 @@ class Payment extends Component<
 
                 {this.renderOrderErrorModal()}
                 {this.renderEmbeddedSupportErrorModal()}
+                <ErrorModal
+                    error={this.state.fraudDetected ? new Error('There is a problem with your account. Please contact customer service') : undefined}
+                    onClose={() => this.setState({fraudDetected: false})}
+                />
             </PaymentContext.Provider>
         );
     }
@@ -442,40 +450,52 @@ class Payment extends Component<
             onSubmit = noop,
             onSubmitError = noop,
             submitOrder,
+            consignments,
             analyticsTracker
         } = this.props;
 
         const { selectedMethod = defaultMethod, submitFunctions } = this.state;
 
-        analyticsTracker.clickPayButton({shouldCreateAccount: values.shouldCreateAccount});
+        const address = consignments[0]?.shippingAddress
 
-        const customSubmit =
-            selectedMethod &&
-            submitFunctions[getUniquePaymentMethodId(selectedMethod.id, selectedMethod.gateway)];
+        const didDetectFraud = await detectFraud(address)
 
-        if (customSubmit) {
-            return customSubmit(values);
-        }
+        if (!didDetectFraud) {
+            analyticsTracker.clickPayButton({shouldCreateAccount: values.shouldCreateAccount});
 
-        try {
-            const state = await submitOrder(mapToOrderRequestBody(values, isPaymentDataRequired()));
-            const order = state.data.getOrder();
+            const customSubmit =
+              selectedMethod &&
+              submitFunctions[getUniquePaymentMethodId(selectedMethod.id, selectedMethod.gateway)];
 
-            analyticsTracker.paymentComplete();
-
-            onSubmit(order?.orderId);
-        } catch (error) {
-            analyticsTracker.paymentRejected();
-
-            if (isErrorWithType(error) && error.type === 'payment_method_invalid') {
-                return loadPaymentMethods();
+            if (customSubmit) {
+                return customSubmit(values);
             }
 
-            if (isCartChangedError(error)) {
-                return onCartChangedError(error);
-            }
+            try {
+                const state = await submitOrder(mapToOrderRequestBody(values, isPaymentDataRequired()));
+                const order = state.data.getOrder();
 
-            onSubmitError(error);
+                analyticsTracker.paymentComplete();
+
+                onSubmit(order?.orderId);
+            } catch (error) {
+                analyticsTracker.paymentRejected();
+
+                if (isErrorWithType(error) && error.type === 'payment_method_invalid') {
+                    return loadPaymentMethods();
+                }
+
+                if (isCartChangedError(error)) {
+                    return onCartChangedError(error);
+                }
+
+                onSubmitError(error);
+            }
+            // TODO: Render an error somehow
+        }  else {
+            this.setState({
+                fraudDetected: true
+            })
         }
     };
 
@@ -554,6 +574,7 @@ export function mapToPaymentProps({
     const config = getConfig();
     const customer = getCustomer();
     const consignments = getConsignments();
+
     const { isComplete = false } = getOrder() || {};
     let methods = getPaymentMethods() || EMPTY_ARRAY;
 
@@ -643,6 +664,7 @@ export function mapToPaymentProps({
             features['PAYMENTS-6799.localise_checkout_payment_error_messages'],
         submitOrder: checkoutService.submitOrder,
         submitOrderError: getSubmitOrderError(),
+        consignments: consignments ?? [],
         termsConditionsText:
             isTermsConditionsRequired && termsConditionsType === TermsConditionsType.TextArea
                 ? termsCondtitionsText
